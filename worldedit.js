@@ -1,12 +1,49 @@
-(function() {
-  const plugin = PluginAPI.createPlugin("miniedit_mod");
+class MiniEdit {
+  constructor() {
+    this.selections = {};
+    this.history = {};
+    this.registerEvents();
+  }
 
-  let selections = {};
-  let clipboard = {};
-  let history = {};
+  registerEvents() {
+    ModAPI.addEventListener("sendchatmessage", (ev) => {
+      const msg = ev.message.trim();
+      const player = ModAPI.getProfileName();
 
-  function getRegion(player) {
-    const sel = selections[player.uuid];
+      if (msg === ".wand") {
+        ModAPI.displayToChat({ msg: "MiniEdit> Wand activated. Use left/right click to select positions." });
+        ev.preventDefault = true;
+      }
+
+      if (msg.startsWith(".set ")) {
+        const block = msg.split(" ")[1];
+        this.setRegion(player, block);
+        ev.preventDefault = true;
+      }
+
+      if (msg === ".undo") {
+        this.undo(player);
+        ev.preventDefault = true;
+      }
+    });
+
+    ModAPI.addEventListener("blockclick", (ev) => {
+      const player = ModAPI.getProfileName();
+      if (!this.selections[player]) this.selections[player] = {};
+
+      const sel = this.selections[player];
+      if (!sel.pos1) {
+        sel.pos1 = ev.blockPos;
+        ModAPI.displayToChat({ msg: "MiniEdit> Position 1 set." });
+      } else {
+        sel.pos2 = ev.blockPos;
+        ModAPI.displayToChat({ msg: "MiniEdit> Position 2 set." });
+      }
+    });
+  }
+
+  getRegion(player) {
+    const sel = this.selections[player];
     if (!sel || !sel.pos1 || !sel.pos2) return null;
     return {
       x1: Math.min(sel.pos1.x, sel.pos2.x),
@@ -18,49 +55,43 @@
     };
   }
 
-  plugin.onCommand("wand", function(player) {
-    player.giveItem("wooden_axe", 1);
-    player.sendMessage("MiniEdit wand given.");
-  });
-
-  plugin.onBlockClick("wooden_axe", function(player, block, face) {
-    if (!selections[player.uuid]) selections[player.uuid] = {};
-    const sel = selections[player.uuid];
-    if (!sel.pos1) {
-      sel.pos1 = block.position;
-      player.sendMessage("Position 1 set.");
-    } else {
-      sel.pos2 = block.position;
-      player.sendMessage("Position 2 set.");
+  setRegion(player, blockType) {
+    const region = this.getRegion(player);
+    if (!region) {
+      ModAPI.displayToChat({ msg: "MiniEdit> Select two positions first." });
+      return;
     }
-  });
 
-  plugin.onCommand("set", function(player, args) {
-    const region = getRegion(player);
-    if (!region) return player.sendMessage("Select two positions first.");
-    const blockType = args[0];
-    history[player.uuid] = [];
+    this.history[player] = [];
+
     for (let x = region.x1; x <= region.x2; x++) {
       for (let y = region.y1; y <= region.y2; y++) {
         for (let z = region.z1; z <= region.z2; z++) {
           const pos = { x, y, z };
-          history[player.uuid].push({ pos, old: player.getBlock(pos) });
-          player.setBlock(pos, blockType);
+          const oldBlock = ModAPI.getBlock(pos);
+          this.history[player].push({ pos, old: oldBlock });
+          ModAPI.setBlock(pos, blockType);
         }
       }
     }
-    player.sendMessage(`Region set to ${blockType}.`);
-  });
 
-  plugin.onCommand("undo", function(player) {
-    const hist = history[player.uuid];
-    if (!hist) return player.sendMessage("Nothing to undo.");
-    for (const entry of hist) {
-      player.setBlock(entry.pos, entry.old);
+    ModAPI.displayToChat({ msg: `MiniEdit> Region set to ${blockType}.` });
+  }
+
+  undo(player) {
+    const hist = this.history[player];
+    if (!hist || hist.length === 0) {
+      ModAPI.displayToChat({ msg: "MiniEdit> Nothing to undo." });
+      return;
     }
-    delete history[player.uuid];
-    player.sendMessage("Undo complete.");
-  });
 
-  plugin.register();
-})();
+    for (const entry of hist) {
+      ModAPI.setBlock(entry.pos, entry.old);
+    }
+
+    delete this.history[player];
+    ModAPI.displayToChat({ msg: "MiniEdit> Undo complete." });
+  }
+}
+
+new MiniEdit();
