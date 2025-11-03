@@ -2,7 +2,7 @@ class MiniEdit {
   constructor() {
     this.selections = {};
     this.history = {};
-    this.mcUsername = ModAPI.getProfileName();
+    this.mcUsername = ModAPI.getUsername(); // ✅ Corrected method
     this.registerEvents();
   }
 
@@ -93,4 +93,5 @@ class MiniEdit {
     ModAPI.displayToChat({ msg: "MiniEdit> Undo complete." });
   }
 }
+
 new MiniEdit();
