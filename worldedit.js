@@ -2,33 +2,33 @@ class MiniEdit {
   constructor() {
     this.selections = {};
     this.history = {};
+    this.mcUsername = ModAPI.getProfileName();
     this.registerEvents();
   }
 
   registerEvents() {
     ModAPI.addEventListener("sendchatmessage", (ev) => {
-      const msg = ev.message.trim();
-      const player = ModAPI.getProfileName();
+      const message = ev.message.trim();
 
-      if (msg === ".wand") {
-        ModAPI.displayToChat({ msg: "MiniEdit> Wand activated. Use left/right click to select positions." });
-        ev.preventDefault = true;
+      if (message === ".wand") {
+        ModAPI.displayToChat({ msg: "MiniEdit> Wand activated. Left/right click to select positions." });
+      } else if (message.startsWith(".set ")) {
+        const block = message.split(" ")[1];
+        this.setRegion(this.mcUsername, block);
+      } else if (message === ".undo") {
+        this.undo(this.mcUsername);
+      } else if (message === ".help") {
+        ModAPI.displayToChat({ msg: "MiniEdit> Commands:" });
+        ModAPI.displayToChat({ msg: ".wand - Activate selection tool" });
+        ModAPI.displayToChat({ msg: ".set <block> - Fill region with block" });
+        ModAPI.displayToChat({ msg: ".undo - Undo last action" });
       }
 
-      if (msg.startsWith(".set ")) {
-        const block = msg.split(" ")[1];
-        this.setRegion(player, block);
-        ev.preventDefault = true;
-      }
-
-      if (msg === ".undo") {
-        this.undo(player);
-        ev.preventDefault = true;
-      }
+      ev.preventDefault = true;
     });
 
     ModAPI.addEventListener("blockclick", (ev) => {
-      const player = ModAPI.getProfileName();
+      const player = this.mcUsername;
       if (!this.selections[player]) this.selections[player] = {};
 
       const sel = this.selections[player];
@@ -93,5 +93,4 @@ class MiniEdit {
     ModAPI.displayToChat({ msg: "MiniEdit> Undo complete." });
   }
 }
-
 new MiniEdit();
